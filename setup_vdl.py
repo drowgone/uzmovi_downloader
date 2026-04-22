@@ -17,6 +17,18 @@ def check_ffmpeg():
 def install_packages():
     """Pip orqali kerakli kutubxonalarni o'rnatish"""
     print("--- 1. Kutubxonalarni tekshirish va o'rnatish ---")
+    
+    # Pip mavjudligini tekshirish
+    try:
+        import pip
+    except ImportError:
+        print("[!] XATOLIK: Tizimda 'pip' moduli topilmadi.")
+        if is_windows():
+            print("    -> Iltimos, Python'ni qayta o'rnating va 'Add pip to PATH' belgisini qo'ying.")
+        else:
+            print("    -> Iltimos, pip'ni o'rnating: sudo apt install python3-pip")
+        return False
+
     try:
         # pip orqali o'rnatish
         subprocess.check_call([sys.executable, "-m", "pip", "install"] + REQUIRED_PACKAGES)
