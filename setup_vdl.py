@@ -22,6 +22,27 @@ def check_ffmpeg():
     """Tizimda ffmpeg borligini tekshirish"""
     return shutil.which("ffmpeg") is not None
 
+def check_termux_storage(path):
+    """Termuxda shared storage (SDCard) cheklovini tekshirish"""
+    if is_termux():
+        # Termuxda /storage/ yoki /sdcard/ bilan boshlangan yo'llarda venv ishlamaydi
+        abs_path = os.path.abspath(path)
+        if abs_path.startswith("/storage/") or abs_path.startswith("/sdcard"):
+            script_dir = os.path.dirname(abs_path)
+            folder_name = os.path.basename(script_dir)
+            print("\n" + "!" * 60)
+            print("⚠️  DIQQAT: Termuxda Shared Storage Cheklovi!")
+            print("-" * 60)
+            print("Android tizimi '/storage/emulated/0' (shared storage) ichida")
+            print("virtual muhit (symlink) yaratishga ruxsat bermaydi.")
+            print("\nYechim: Loyihani Termuxning asosiy papkasiga ko'chiring:")
+            print(f"\n   cp -r {script_dir} ~/")
+            print(f"   cd ~/{folder_name}")
+            print("   python setup_vdl.py")
+            print("-" * 60 + "\n")
+            return False
+    return True
+
 def install_packages():
     """Pip orqali kerakli kutubxonalarni o'rnatish (Virtual Environment ichida)"""
     print("--- 1. Kutubxonalarni tekshirish va o'rnatish ---")
@@ -31,6 +52,9 @@ def install_packages():
     
     # 1.1 Venv yaratish
     if not os.path.exists(venv_dir):
+        if not check_termux_storage(venv_dir):
+            return False
+            
         print("[*] Virtual muhit (.venv) yaratilmoqda...")
         try:
             subprocess.check_call([sys.executable, "-m", "venv", venv_dir])
