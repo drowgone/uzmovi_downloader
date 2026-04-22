@@ -50,6 +50,17 @@ def install_packages():
     script_dir = os.path.dirname(os.path.realpath(__file__))
     venv_dir = os.path.join(script_dir, ".venv")
     
+    # 1.0 Permission Check
+    try:
+        test_file = os.path.join(script_dir, ".permission_test")
+        with open(test_file, 'w') as f:
+            f.write("test")
+        os.remove(test_file)
+    except Exception as e:
+        print(f"\n[!] XATOLIK: Papkaga yozish uchun ruxsat yo'q: {script_dir}")
+        print("    -> Iltimos, loyihani yozishga ruxsati bor papkaga ko'chiring (masalan: Desktop yoki Documents).")
+        return False
+    
     # 1.1 Venv yaratish
     if not os.path.exists(venv_dir):
         if not check_termux_storage(venv_dir):
@@ -105,7 +116,8 @@ def main():
     else:
         print("[!] OGOHLANTIRISH: FFmpeg topilmadi!")
         if is_windows():
-            print("    -> Yuklab oling: https://ffmpeg.org/download.html")
+            print("    -> O'rnating (Eng oson): winget install ffmpeg")
+            print("    -> Yoki yuklab oling: https://ffmpeg.org/download.html")
         elif is_termux():
             print("    -> O'rnating: pkg install ffmpeg")
         else:

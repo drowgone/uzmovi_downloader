@@ -1,7 +1,7 @@
 #!/bin/bash
 # Setup VDL Native Messaging Host
 
-HOST_NAME="com.vdl"
+HOST_NAME="com.chrome_ex.vdl"
 JSON_FILE="../vdl_host/$HOST_NAME.json"
 
 # Check for Chrome/Chromium config directories

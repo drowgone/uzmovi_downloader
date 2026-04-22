@@ -74,7 +74,7 @@ Bu avtomatik ravishda Linuxda symlink, Windowsda esa `.cmd` wrapper yaratadi.
 2. **Developer mode** ni yoqing.
 3. **Load unpacked** tugmasini bosing va loyihadagi `vdl_extension` papkasini tanlang.
 4. Kengaytma ID sini nusxalang.
-5. `vdl_host/com.antigravity.vdl.json` faylini ochib, `PLACEHOLDER_ID` o'rniga ID ni qo'ying.
+5. `vdl_host/com.chrome_ex.vdl.json` faylini ochib, `PLACEHOLDER_ID` o'rniga ID ni qo'ying.
 6. `kino` dasturi sozlamalaridan **Install** ni qayta bosing (Hostni ro'yxatga olish uchun).
 
 ---

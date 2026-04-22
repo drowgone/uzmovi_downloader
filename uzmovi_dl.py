@@ -9,6 +9,7 @@ import json
 import signal
 import threading
 import select
+import shutil
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 # --- PLATFORM DETECTION ---
@@ -20,6 +21,41 @@ if IS_WINDOWS:
 else:
     import termios
     import tty
+
+# --- WINDOWS HARDENING ---
+if IS_WINDOWS:
+    try:
+        # Windowsda terminal kodirovkasini UTF-8 ga o'tkazish (Emoji va maxsus belgilar uchun)
+        if hasattr(sys.stdout, 'reconfigure'):
+            sys.stdout.reconfigure(encoding='utf-8')
+    except:
+        pass
+
+# --- SYSTEM UTILS ---
+def check_ffmpeg():
+    """Tizimda ffmpeg borligini tekshirish"""
+    return shutil.which("ffmpeg") is not None
+
+def show_ffmpeg_warning():
+    """FFmpeg yo'qligi haqida chiroyli ogohlantirish ko'rsatish"""
+    if check_ffmpeg():
+        return True
+        
+    warning_text = """
+[bold red]⚠️  DIQQAT: FFmpeg topilmadi (Missing FFmpeg)![/bold red]
+
+YouTube va boshqa saytlardan [bold]1080p+[/bold] sifatda video yuklashda 
+video va audio [bold]aylanib (merging)[/bold] qolmasligi uchun [bold]FFmpeg[/bold] shart!
+
+[bold yellow]Yechim (O'rnatish):[/bold yellow]
+  [green]• Windows:[/green]   Terminalda shunchaki: [bold blue]winget install ffmpeg[/bold blue]
+  [green]• Linux:[/green]     [bold blue]sudo apt install ffmpeg[/bold blue]
+  [green]• Termux:[/green]    [bold blue]pkg install ffmpeg[/bold blue]
+
+[cyan]FFmpeg o'rnatilgandan so'ng dasturni qaytadan ishga tushiring.[/cyan]
+"""
+    console.print(Panel(warning_text, title="TIZIM XATOLIGI", border_style="red"))
+    return False
 
 # --- DEPENDENCY AUTOLOADER ---
 def check_dependencies():
@@ -200,7 +236,7 @@ def get_uzmovi_info(url, retries=3):
 def get_universal_info(url):
     """yt-dlp yordamida istalgan urldan ma'lumotlarni olish"""
     try:
-        cmd = ["yt-dlp", "-j", "--no-playlist", url]
+        cmd = [sys.executable, "-m", "yt_dlp", "-j", "--no-playlist", url]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return url, None, result.stderr.strip() or "yt-dlp ma'lumot ololmadi"
@@ -227,7 +263,7 @@ def get_video_info(url):
 def get_available_qualities(url):
     """yt-dlp yordamida mavjud sifatlarni aniqlash"""
     try:
-        cmd = ["yt-dlp", "-j", "--no-playlist", url]
+        cmd = [sys.executable, "-m", "yt_dlp", "-j", "--no-playlist", url]
         result = subprocess.run(cmd, capture_output=True, text=True)
         if result.returncode != 0:
             return []
@@ -403,12 +439,12 @@ def is_installed():
 def install_chrome_bridge(python_exe=None):
     """Chrome uchun Native Messaging Host'ni avtomatik sozlash"""
     script_dir = os.path.dirname(os.path.realpath(__file__))
-    host_json_path = os.path.join(script_dir, "vdl_host", "com.antigravity.vdl.json")
+    host_json_path = os.path.join(script_dir, "vdl_host", "com.chrome_ex.vdl.json")
     
     if not os.path.exists(host_json_path):
         return
 
-    host_name = "com.antigravity.vdl"
+    host_name = "com.chrome_ex.vdl"
 
     # Tayyorlash: Manifest tarkibini o'qish va moslashtirish
     try:
@@ -459,7 +495,7 @@ def install_chrome_bridge(python_exe=None):
             winreg.SetValueEx(key, None, 0, winreg.REG_SZ, host_json_path)
             winreg.CloseKey(key)
             
-            for browser in ["Chromium", "Microsoft\\Edge"]:
+            for browser in ["Chromium", "Microsoft\\Edge", "BraveSoftware\\Brave-Browser"]:
                 reg_key_path = f"Software\\{browser}\\NativeMessagingHosts\\{host_name}"
                 key = winreg.CreateKey(winreg.HKEY_CURRENT_USER, reg_key_path)
                 winreg.SetValueEx(key, None, 0, winreg.REG_SZ, host_json_path)
@@ -749,7 +785,18 @@ def run_app():
     download_confirm = questionary.confirm("Kinolarni hozirning o'zida yuklashni boshlaymizmi?").ask()
 
     save_path = "topilgan_kinolar.txt"
+    
+    # FFmpeg tekshiruvi (YouTube va h.k. uchun juda muhim)
+    is_ffmpeg_ok = check_ffmpeg()
+
     if download_confirm:
+        # Agar FFmpeg yo'q bo'lsa va bu ehtimol YouTube bo'lsa, ogohlantirish
+        if not is_ffmpeg_ok:
+            show_ffmpeg_warning()
+            console.print("[bold yellow][!] Ogohlantirish: Videolar alohida (audio/video) bo'lib qolishi mumkin.[/bold yellow]")
+            if not questionary.confirm("Baribir davom etamizmi?").ask():
+                return True
+                
         for idx, info in enumerate(results, 1):
             # Global yuklash papkasini ham inobatga olamiz
             target_folder = os.path.join(download_base, info['folder'])
@@ -766,7 +813,7 @@ def run_app():
                 continue
                 
             command = [
-                "yt-dlp", 
+                sys.executable, "-m", "yt_dlp", 
                 info['source_url'], 
                 "--no-playlist",
                 "-f", quality_str,
@@ -774,6 +821,9 @@ def run_app():
                 "--concurrent-fragments", "4",
                 "-o", file_path
             ]
+            if IS_WINDOWS:
+                # Windowsda path length va noqonuniy belgilar muammosini oldini olish
+                command.extend(["--windows-filenames", "--restrict-filenames", "--trim-filenames", "160"])
             try:
                 download_with_progress(command, file_name)
                 console.print(f"[bold cyan][+] Muvaffaqiyatli saqlandi: {file_path}[/bold cyan]")
@@ -833,6 +883,12 @@ def direct_download(url):
     else:
         console.print("[yellow][!] Sifatlarni aniqlab bo'lmadi, eng yaxshi sifat tanlanadi.[/yellow]")
     
+    # FFmpeg check for direct download
+    if not check_ffmpeg():
+        show_ffmpeg_warning()
+        if not questionary.confirm("Baribir davom etamizmi?").ask():
+            return True
+    
     target_folder = os.path.join(download_base, info['folder'])
     os.makedirs(target_folder, exist_ok=True)
     
@@ -847,7 +903,7 @@ def direct_download(url):
         sys.exit(0)
     
     command = [
-        "yt-dlp", 
+        sys.executable, "-m", "yt_dlp", 
         info['source_url'], 
         "--no-playlist",
         "-f", quality_str,
@@ -855,6 +911,8 @@ def direct_download(url):
         "--concurrent-fragments", "4",
         "-o", file_path
     ]
+    if IS_WINDOWS:
+        command.extend(["--windows-filenames", "--restrict-filenames", "--trim-filenames", "160"])
     try:
         download_with_progress(command, file_name)
         console.print(f"[bold cyan][+] Muvaffaqiyatli saqlandi: {file_path}[/bold cyan]")

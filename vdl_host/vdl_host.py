@@ -5,6 +5,11 @@ import struct
 import subprocess
 import os
 
+if sys.platform == "win32":
+    import msvcrt
+    msvcrt.setmode(sys.stdin.fileno(), os.O_BINARY)
+    msvcrt.setmode(sys.stdout.fileno(), os.O_BINARY)
+
 # Chrome Native Messaging Host logic
 def send_message(message):
     encoded_message = json.dumps(message).encode('utf-8')
@@ -36,11 +41,15 @@ def main():
                     is_windows = os.name == 'nt'
 
                     if is_windows:
-                        # Windows: Use 'start' to launch in a new CMD window
-                        # cmd /c start python kino_opener.py url
-                        # We use sys.executable to ensure we use the same python
-                        cmd = f'start "VDL Downloader" "{sys.executable}" "{opener_path}" "{url}"'
-                        subprocess.Popen(cmd, shell=True)
+                        # Windows: Use CREATE_NEW_CONSOLE for a clean separate terminal
+                        # This avoids shell quoting issues with 'start' and correctly handles URLs with '&'
+                        try:
+                            # subprocess.CREATE_NEW_CONSOLE constant is only available on Windows
+                            CREATE_NEW_CONSOLE = 0x00000010
+                            subprocess.Popen([sys.executable, opener_path, url], creationflags=CREATE_NEW_CONSOLE)
+                        except Exception as terminal_err:
+                             # Fallback to shell start if something goes wrong
+                             subprocess.Popen(f'start "VDL Downloader" "{sys.executable}" "{opener_path}" "{url}"', shell=True)
                     else:
                         # Linux: Use gnome-terminal
                         # Try using --app-id and --active which can help force tab behavior
@@ -52,8 +61,13 @@ def main():
                 break
         except Exception as e:
             # We can log to a file for debugging since stdout is used for messaging
-            with open("/home/donegrow/.gemini/antigravity/scratch/vdl_host_error.log", "a") as f:
-                f.write(str(e) + "\n")
+            try:
+                script_dir = os.path.dirname(os.path.realpath(__file__))
+                log_path = os.path.join(script_dir, "vdl_host_error.log")
+                with open(log_path, "a") as f:
+                    f.write(str(e) + "\n")
+            except:
+                pass
             break
 
 if __name__ == '__main__':

@@ -12,7 +12,7 @@ chrome.contextMenus.onClicked.addListener((info, tab) => {
     if (url) {
       console.log("Sending URL to native host:", url);
       chrome.runtime.sendNativeMessage(
-        'com.antigravity.vdl',
+        'com.chrome_ex.vdl',
         { url: url },
         function(response) {
           if (chrome.runtime.lastError) {
